@@ -57,10 +57,15 @@ fi
 }
 step credentials "$(jq -r 'if .changed_total == 0 then "kept: Ines'"'"'s login as declared" else "set \(.changed_total) (was not as declared)" end' "$BUILD_DIR/ansible-stats/people.json")"
 before=$(was vaultsync-api)
+ids() { podman inspect --format '{{.Id}}' vaultsync-api vaultsync-web 2>/dev/null | paste -sd' ' -; }
+ids_before=$(ids)
 "$VSYNC_ROOT/scripts/app-up.sh" >"$BUILD_DIR/up-app.log" 2>&1 || {
   cat "$BUILD_DIR/up-app.log" >&2
   die "up: the app did not come up (make app-logs)"
 }
-step app "$( [ "$before" = running ] && echo "kept: api, web running" || echo "api, web started ($before before)")"
+# Compose recreates a container whose image was rebuilt: say so, not "kept".
+if [ "$before" != running ]; then step app "api, web started ($before before)"
+elif [ "$(ids)" != "$ids_before" ]; then step app "recreated: api or web had a new image or settings"
+else step app "kept: api, web running"; fi
 step init "one-shot web-init removed after a successful start"
 echo "up: done. make verify to check, make doctor if something looks wrong, make show-ready before a talk."

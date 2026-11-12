@@ -69,8 +69,7 @@ export function useVaultLog() {
   return entries;
 }
 
-// Hash routing: #/cases, #/run/run-6-0a1b2c3d … The first segment is the
-// page; useHashParam reads the rest.
+// Hash routing: #/overview, #/home and so on. The first segment is the page.
 const segments = () => window.location.hash.replace(/^#\/?/, "").split("?")[0].split("/");
 export function useRoute(routes, fallback) {
   const read = () => {
@@ -84,14 +83,4 @@ export function useRoute(routes, fallback) {
     return () => window.removeEventListener("hashchange", on);
   });
   return route;
-}
-
-export function useHashParam() {
-  const [p, setP] = useState(() => segments()[1] || null);
-  useEffect(() => {
-    const on = () => setP(segments()[1] || null);
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
-  }, []);
-  return p;
 }

@@ -54,6 +54,13 @@ its certificate against the lab CA; no request leaves for real AWS.
 LocalStack's auth token is in `.env` and handed to the LocalStack container
 only (`make verify` checks the Vault nodes do not have it).
 
+A limit, by design: LocalStack also listens on `127.0.0.1:14566` and accepts
+the `test` keys from anyone, so the presenter can show the AWS side with
+`lstk` (D4). Any process on this Mac can therefore read the legacy values and
+the synced copies, or overwrite a copy; the console would then show "differs
+from Vault" until the next sync. Real AWS would require IAM credentials and
+a policy; on one Mac with synthetic values this is accepted.
+
 ## The audit log
 
 Every step the console runs uses Ines's own token and carries

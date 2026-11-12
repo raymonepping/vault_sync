@@ -74,7 +74,7 @@ export function usePlaces(intervalMs = 4000) {
 
 // One step of an act. Vault's refusal is shown verbatim; the event goes to
 // the "Vault said" drawer through api.js.
-export function StepButton({ act, step, label, kind = 'primary', disabled, onDone, busy }) {
+export function StepButton({ act, step, label, kind = 'primary', disabled, onDone }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState(null);
   const run = async () => {
@@ -92,7 +92,7 @@ export function StepButton({ act, step, label, kind = 'primary', disabled, onDon
   };
   return (
     <span className="step">
-      <button type="button" className={`${kind}-button`} onClick={run} disabled={disabled || running || Boolean(busy)}>
+      <button type="button" className={`${kind}-button`} onClick={run} disabled={disabled || running}>
         {running ? 'Asking Vault…' : label}
       </button>
       {error && <ErrorNotice error={error} title={`${label}: refused`} />}

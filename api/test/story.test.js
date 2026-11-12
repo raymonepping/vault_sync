@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createStory, createEvents, githubState, githubName, copyName, StoryError } from "../lib/story.js";
+import { writeFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createStory, createEvents, githubState, githubName, copyName, readEvidence, StoryError } from "../lib/story.js";
 import { fp } from "../lib/localstack.js";
 
 const story = {
@@ -104,4 +107,33 @@ test("GitHub evidence read before Vault's last sync is stale, never current", ()
 test("the names the destination templates give (probe P23)", () => {
   assert.equal(githubName("parcel/delivery-api"), "LUMEN_PARCEL_DELIVERY_API_VALUE");
   assert.equal(copyName("parcel/delivery-api"), "vault/lumen/parcel/delivery-api");
+});
+
+test("a partly failed import labels exactly the secrets that landed", async () => {
+  const v = fakeVault();
+  // The import wrote one of two, then reported a refusal.
+  const importer = { run: async () => { v.kv["parcel/delivery-api"] = { current_version: 1, custom_metadata: { "import-source": "aws-sm" } }; return { ok: false, output: "Secrets not imported ..." }; }, config: () => "" };
+  const e = await make(v, importer).run(ines, "home", "apply");
+  assert.equal(e.ok, false);
+  assert.equal(v.kv["parcel/delivery-api"].custom_metadata.value_fp, "aaaaaaaa");
+  assert.equal(v.kv["parcel/smtp-relay"], undefined); // not created by a label
+});
+
+test("evidence read mid-write is read again once", async () => {
+  const f = join(mkdtempSync(join(tmpdir(), "ev-")), "evidence.json");
+  writeFileSync(f, '{"read_at": "2026-11');
+  setTimeout(() => writeFileSync(f, JSON.stringify({ read_at: "2026-11-12T10:00:00Z", secrets: [{ name: "X", updated_at: "2026-11-12T09:00:00Z" }] })), 20);
+  const ev = await readEvidence(f);
+  assert.equal(ev.read_at, "2026-11-12T10:00:00Z");
+  assert.equal(ev.secrets.X, "2026-11-12T09:00:00Z");
+});
+
+test("a rotation whose fingerprint label is refused is not reported as done", async () => {
+  const v = fakeVault(["parcel/delivery-api"]);
+  const call = async (token, method, path, o = {}) =>
+    method === "POST" && path.includes("/metadata/") ? { ok: false, status: 403, json: null, errors: ["permission denied"] } : v.call(token, method, path, o);
+  const s = createStory({ story, call, ns: (p) => `lumen/${p}`, localstack, importer: null, vaultAddr: async () => "x", events: createEvents(5), evidenceFile: "/nope", localstackIp: "x" });
+  const e = await s.run(ines, "change", "rotate");
+  assert.equal(e.ok, false);
+  assert.match(e.summary, /version 2, but Vault refused its fingerprint label: permission denied/);
 });

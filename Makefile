@@ -29,9 +29,9 @@ endef
 	lab phases seal-up seal-init vault-seal seal-tokens vault-up bootstrap cloud-up cloud-down vault-platform people github-app destinations seed stage app-up validate \
 	unseal vault-down vault-status vault-stepdown vault-login seal-token-status seal-token-rotate root-regen root-revoke \
 	people-copy-password tf-plan-all boundary idempotency drift secret-scan \
-	story-check github-evidence github-forget-key stage-reset probe rehearsal show-ready \
+	story-check github-evidence github-installation github-forget-key stage-reset probe rehearsal show-ready \
 	app-build app-down app-rebuild open \
-	up down verify lint test-unit api-test e2e-install test-ui test-ui-headed test-ui-report screenshots \
+	up down verify lint test-unit e2e-install test-ui test-ui-headed test-ui-report screenshots \
 	doctor backup clean-slate $(addsuffix -logs,$(STACKS))
 
 help: ## Show available commands
@@ -234,6 +234,9 @@ people-copy-password: ## Put the presenter's password on the clipboard (never pr
 github-evidence: ## Read GitHub's own metadata of the synced secrets (gh CLI; names and times, never values) into .build/
 	$(call run,github-evidence.sh)
 
+github-installation: ## The GitHub App's installation on the repository: its id and permissions (identifiers only)
+	$(call run,github-installation.sh)
+
 github-forget-key: ## (changes state) Move the GitHub App private key out of .secrets/github/ (a rebuild then needs a new key): CONFIRM=yes
 	$(call run,github-forget-key.sh)
 
@@ -289,9 +292,6 @@ test-unit: ## Unit tests, no stack needed: story-check, api, web
 	@node --test scripts/*.test.js
 	@if [ -f api/package.json ]; then cd api && npm test; fi
 	@if [ -f web/package.json ]; then cd web && npm test; fi
-
-api-test: ## Same as make rehearsal: every API route, every act, every refusal
-	$(call run,rehearsal.sh)
 
 # Playwright against the live stack; nothing is mocked. Node (the request
 # fixture) trusts the lab CA the way the browser does: verified, never ignored.

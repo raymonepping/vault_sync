@@ -52,6 +52,7 @@ class HttpError extends Error {
 }
 
 function send(res, code, obj) {
+  if (code >= 500) res.errorText = obj.error; // for the request log line
   res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" });
   res.end(JSON.stringify(obj));
 }
@@ -112,8 +113,7 @@ const routes = {
   },
   "GET /api/sync": async (req) => ({ destinations: await runner.sync(sessions.get(req)) }),
   "GET /api/sources": async (req) => {
-    const s = sessions.get(req);
-    return await runner.sources(s, await runner.sync(s));
+    return await runner.sources(sessions.get(req));
   },
   "GET /api/events": async (req) => {
     sessions.get(req);
@@ -133,7 +133,7 @@ export const server = http.createServer(async (req, res) => {
   // One JSON line per request: never headers, bodies or tokens. Quiet polls.
   res.on("finish", () => {
     if (req.method === "GET" && res.statusCode < 400) return;
-    console.log(JSON.stringify({ at: new Date().toISOString(), method: req.method, path: url.pathname, status: res.statusCode, ms: Date.now() - t0, correlation_id: res.correlationId || null }));
+    console.log(JSON.stringify({ at: new Date().toISOString(), method: req.method, path: url.pathname, status: res.statusCode, ms: Date.now() - t0, correlation_id: res.correlationId || null, error: res.errorText || undefined }));
   });
   if (session.crossSiteWrite(req)) return send(res, 403, { ok: false, error: "refused: this request came from another site" });
   try {

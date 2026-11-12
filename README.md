@@ -55,8 +55,9 @@ console shows fingerprints (the first 8 hex of SHA-256).
   `.env`. LocalStack keeps nothing across a restart on the free licence;
   `make up` seeds it again.
 - A GitHub App with Actions secrets read and write on one repository: its
-  App ID and installation ID in `config/defaults.conf`, its private key in
-  `.secrets/github/` (0600). The secrets it writes are named `LUMEN_*`.
+  App ID and installation ID in `config/defaults.conf` (`make
+  github-installation` prints the installation ID once the key is in place),
+  its private key in `.secrets/github/` (0600). The secrets it writes are named `LUMEN_*`.
 
 ## First run
 

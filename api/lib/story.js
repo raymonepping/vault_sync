@@ -111,13 +111,14 @@ export function createStory({ story, call, ns, localstack, importer, vaultAddr, 
       if (!todo.length) throw new StoryError(409, "every legacy secret is already in Vault; a second import would write a new version. make stage-reset CONFIRM=yes starts over");
       const r = await importer.run("apply", { token: s.token, vaultAddr: await vaultAddr(), config: importer.config({ secrets: todo, address: await vaultAddr(), localstackIp }) });
       const said_ = [];
-      if (r.ok) {
-        // The value Vault now holds is LocalStack's: record its fingerprint
-        // (declared by the API, read in memory) next to Import's own labels.
-        for (const l of todo) {
-          const v = await localstack.fingerprint(l.aws_name);
-          said_.push(said(s.user, "POST", `${MOUNT}/metadata/${l.kv_name}`, await label(s, l.kv_name, { value_fp: v || "unknown" }, cid)));
-        }
+      // The value Vault now holds is LocalStack's: record its fingerprint
+      // (declared by the API, read in memory) next to Import's own labels.
+      // Only for paths that landed, also after a partial failure: labelling a
+      // path that did not would create it, and it would look imported.
+      for (const l of todo) {
+        if (!(await meta(s, l.kv_name, cid)).data) continue;
+        const v = await localstack.fingerprint(l.aws_name);
+        said_.push(said(s.user, "POST", `${MOUNT}/metadata/${l.kv_name}`, await label(s, l.kv_name, { value_fp: v || "unknown" }, cid)));
       }
       return { ok: r.ok, summary: r.ok ? `imported ${count(todo.length)} into ${MOUNT}/parcel/` : "the import failed", output: r.output, said: said_ };
     },
@@ -134,8 +135,14 @@ export function createStory({ story, call, ns, localstack, importer, vaultAddr, 
       const fingerprint = fp(value);
       const w = await call(s.token, "POST", ns(`${MOUNT}/data/${kv}`), { body: { data: { value } }, correlationId: cid });
       const out = [said(s.user, "POST", `${MOUNT}/data/${kv}`, w)];
-      if (w.ok) out.push(said(s.user, "POST", `${MOUNT}/metadata/${kv}`, await label(s, kv, { value_fp: fingerprint, rotated_by: s.user, rotated_at: new Date().toISOString() }, cid)));
-      return { ok: w.ok, summary: w.ok ? `${kv} is now version ${w.json?.data?.version} (fingerprint ${fingerprint})` : `Vault refused the rotation: ${w.errors[0] || w.status}`, said: out };
+      if (!w.ok) return { ok: false, summary: `Vault refused the rotation: ${w.errors[0] || w.status}`, said: out };
+      const l = await label(s, kv, { value_fp: fingerprint, rotated_by: s.user, rotated_at: new Date().toISOString() }, cid);
+      out.push(said(s.user, "POST", `${MOUNT}/metadata/${kv}`, l));
+      const version = w.json?.data?.version;
+      // Without its label the console would compare the copies to the old fingerprint.
+      return l.ok
+        ? { ok: true, summary: `${kv} is now version ${version} (fingerprint ${fingerprint})`, said: out }
+        : { ok: false, summary: `${kv} is now version ${version}, but Vault refused its fingerprint label: ${l.errors[0] || l.status}`, said: out };
     },
   };
 
@@ -191,9 +198,10 @@ export function createStory({ story, call, ns, localstack, importer, vaultAddr, 
 
     // Each legacy secret in all four places: LocalStack's legacy store,
     // Vault, LocalStack's synced copy and GitHub. Fingerprints, never values.
-    async sources(s, syncState) {
-      const evidence = await readEvidence(evidenceFile);
-      const ghAssoc = Object.fromEntries((syncState?.github?.associations || []).map((a) => [a.secret_name, a]));
+    async sources(s) {
+      const d = DESTINATIONS.github;
+      const [evidence, gh] = await Promise.all([readEvidence(evidenceFile), call(s.token, "GET", ns(`sys/sync/destinations/${d.type}/${d.name}/associations`))]);
+      const ghAssoc = Object.fromEntries(Object.values(gh.json?.data?.associated_secrets || {}).map((a) => [a.secret_name, a]));
       const rows = [];
       for (const l of story.legacy) {
         const [legacy, legacyFp, m, copy, copyFp] = await Promise.all([

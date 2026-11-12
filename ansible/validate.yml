@@ -100,7 +100,8 @@
             SignedHeaders=host, Signature=0
         body: "{{ {'SecretId': item.aws_name} | to_json }}"
         return_content: true
-      loop: "{{ v_story.legacy }}"
+      # Names and labels only: a failing item is printed, a value never is.
+      loop: "{{ v_story.legacy | items2dict(key_name='aws_name', value_name='labels') | dict2items(key_name='aws_name', value_name='labels') }}"
       loop_control:
         label: "{{ item.aws_name }}"
       register: v_legacy

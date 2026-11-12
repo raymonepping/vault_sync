@@ -39,6 +39,12 @@
 # An association whose copy is gone is removed, so Vault and the store agree;
 # the presenter pushes again. Removing a copy that is already gone is a no-op
 # for LocalStack. The secret in Vault is not touched.
+- name: The copy's name is a prefix plus the secret's path
+  ansible.builtin.assert:
+    that: destinations_body.secret_name_template is regex('\{\{ *\.SecretPath *\}\}$')
+    fail_msg: secret_name_template must end with {{ '{{' }} .SecretPath {{ '}}' }}; the reconcile below looks copies up by that name.
+    quiet: true
+
 - name: Read the AWS destination's associations
   ansible.builtin.uri:
     url: "{{ destinations_ns }}/sys/sync/destinations/aws-sm/{{ destinations_name }}/associations"

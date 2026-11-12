@@ -143,12 +143,6 @@ vsync_container_state() {
   podman container inspect "$1" --format '{{.State.Status}}' 2>/dev/null || echo "not created"
 }
 
-# `vault list` on an empty path prints [] *and* exits 2: always one JSON array.
-vault_list_json() {
-  local o
-  o=$(vault list -format=json "$1" 2>/dev/null) || true
-  jq -c 'if type == "array" then . else [] end' <<<"${o:-[]}" 2>/dev/null || echo '[]'
-}
 
 # vcurl <token|-> <curl args...>: curl with X-Vault-Token from a config read
 # on a file descriptor, never on curl's command line (ps shows every argv).

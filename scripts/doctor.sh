@@ -104,7 +104,7 @@ if running vaultsync-localstack; then
   n=$(curl -s --cacert vault-tls/ca-chain.pem -X POST "https://localhost:$(vsync_conf VSYNC_PORT_LOCALSTACK)/" \
     -H 'X-Amz-Target: secretsmanager.ListSecrets' -H 'Content-Type: application/x-amz-json-1.1' \
     -H "Authorization: AWS4-HMAC-SHA256 Credential=test/20260101/$(vsync_conf VSYNC_AWS_REGION)/secretsmanager/aws4_request, SignedHeaders=host, Signature=0" \
-    --data '{"MaxResults":100}' | jq '[.SecretList[]?.Name | select(startswith("lumen-legacy/"))] | length')
+    --data '{"MaxResults":100}' | jq --argjson want "$(jq '[.legacy[].aws_name]' config/story.json)" '[.SecretList[]?.Name] as $have | [$want[] | select(. as $n | $have | index($n))] | length')
   [ "${n:-0}" -ge "$(jq '.legacy | length' config/story.json)" ] && fine "the legacy store holds its $n secrets" || fix "the legacy store holds ${n:-0} secrets" "make seed"
 else
   fix "vaultsync-localstack is not running" "make up"

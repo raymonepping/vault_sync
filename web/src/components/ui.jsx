@@ -99,13 +99,6 @@ export function TableScroll({ label, children }) {
   );
 }
 
-export function Mono({ children, title }) {
-  return (
-    <code className="mono" title={title}>
-      {children}
-    </code>
-  );
-}
 
 
 // Right-hand drawer; Escape and the backdrop close it; focus moves in.

@@ -15,7 +15,7 @@ features=$(jq -r '.data.autoloaded.features[]' <<<"$status")
 
 echo "cluster licence: expires $(jq -r '.data.autoloaded.expiration_time' <<<"$status" | cut -c1-10), Vault $version"
 case "$version" in *+ent*) ;; *)
-  echo "  NOT Enterprise: namespaces and Agentic IAM need it." >&2
+  echo "  NOT Enterprise: namespaces, Secrets Sync and Secrets Import need it." >&2
   exit 1
   ;;
 esac
@@ -35,7 +35,8 @@ row() { # <area> <needs> [feature]: "edition" rows need Enterprise only
 }
 printf '  %-28s %-34s %s\n' AREA NEEDS LICENSED
 row "The whole lab (namespace)" "Namespaces" "Namespaces"
-row "Cases 3 to 8, 10 (agents)" "Agentic IAM" "Agentic IAM"
+row "Send out, change once, let go" "Secrets Sync" "Secrets Sync"
+row "Bring home" "Secrets Import" "Secrets Import"
 echo
 echo "Feature names in the licence:"
 sed 's/^/  - /' <<<"$features"

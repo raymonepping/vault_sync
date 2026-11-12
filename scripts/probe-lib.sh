@@ -4,6 +4,7 @@
 # status), BODY (response) and ERR (Vault's errors[0], verbatim).
 # Never prints a token.
 
+# shellcheck disable=SC2034  # ST and ERR are read by the caller (probe.sh)
 api() {
   local tok=$1 method=$2 path=$3 body=${4:-} hdr=${5:-} out args=()
   out=$(mktemp)
@@ -16,11 +17,6 @@ api() {
   ERR=$(jq -r '.errors[0] // .data.error // empty' <<<"$BODY" 2>/dev/null | tr '\n\t' '  ' | tr -s ' ' | sed 's/ *$//' || true)
 }
 
-b64() { printf '%s' "$1" | base64; }
-
-# A ciphertext shortened to its version prefix and 8 characters.
-short() { sed -E 's/^(vault:v[0-9]+:)(.{8}).*/\1\2.../' <<<"$1"; }
-
 row() { # <case> <act> <call> <expected> <answer> <yes|no>
   printf '| %s | %s | `%s` | %s | %s | %s |\n' "$1" "$2" "$3" "$4" "$(tr '|\n\t' '/  ' <<<"$5" | cut -c1-220)" "$6" >>"$ROWS"
   if [ "$6" = yes ]; then
@@ -30,29 +26,4 @@ row() { # <case> <act> <call> <expected> <answer> <yes|no>
     fail=$((fail + 1))
     printf '  \033[31mFAIL\033[0m %-4s %s (%s)\n' "$1" "$3" "$(cut -c1-160 <<<"$5")"
   fi
-}
-
-# expect <case> <act> <call> <expected> <want status regex> [jq test on BODY]
-expect() {
-  local c=$1 a=$2 call=$3 want=$4 st=$5 test=${6:-} ans
-  ans="HTTP $ST${ERR:+: $ERR}"
-  if [[ "$ST" =~ ^($st)$ ]] && { [ -z "$test" ] || jq -e "$test" <<<"$BODY" >/dev/null 2>&1; }; then
-    row "$c" "$a" "$call" "$want" "$ans" yes
-  else
-    row "$c" "$a" "$call" "$want" "$ans" no
-  fi
-}
-
-# login <user>: sets TOK[user] and ENT[user] for a scratch persona (password
-# from PW_DIR). Not in a subshell: the caller needs both.
-# shellcheck disable=SC2034  # TOK and ENT are the caller's (probe.sh) arrays
-login() {
-  api - POST "auth/probe-userpass/login/$1" "$(jq -n --arg p "$(cat "$PW_DIR/$1")" '{password: $p}')"
-  TOK[$1]=$(jq -r '.auth.client_token' <<<"$BODY")
-  ENT[$1]=$(jq -r '.auth.entity_id' <<<"$BODY")
-}
-
-# audit <node> <jq filter>: matching entries of the scratch audit log on one node.
-audit() {
-  podman exec "$(vault_container "$1")" cat /vault/audit/probe.log 2>/dev/null | jq -c "select($2)" 2>/dev/null || true
 }

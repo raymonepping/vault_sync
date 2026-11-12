@@ -62,3 +62,13 @@ test("a write from another site or origin is refused; reads and same-origin writ
 test("parseCookies keeps the first value and survives a broken one", () => {
   assert.deepEqual(parseCookies("a=1; a=2; b=%E0%A4%A"), { a: "1" });
 });
+
+test("a refused revoke at sign-out is logged, never with the token", async (t) => {
+  const lines = [];
+  t.mock.method(console, "error", (l) => lines.push(l));
+  const s = createSessions({ login: async () => ok(), revoke: async () => ({ ok: false, status: 403, errors: ["permission denied"] }) });
+  const { sid } = await s.signIn("ines", "pw");
+  assert.equal(await s.signOut(req(`${COOKIE}=${sid}`)), true);
+  assert.match(lines.join(), /"signout_revoke":"failed","status":403/);
+  assert.ok(!lines.join().includes("tok-ines"));
+});

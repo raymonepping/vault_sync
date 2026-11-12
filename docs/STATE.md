@@ -201,3 +201,45 @@ What was built, deferred and learned per build prompt. Read this first.
   `make up` failed drift and idempotency; five reruns (slices and full) did
   not reproduce it. `verify` now prints a failing check's last lines, so a
   repeat names its phase.
+
+## Prompt 99, round 1 (2026-11-12, after 88b14a6)
+
+Reviews: ponytail-audit (1 to 10), ponytail-review (11 to 14),
+backend-design audit of `api/` (15 to 17), security discipline (18 to 21).
+Every finding fixed:
+
+1. `make license-features` checked Agentic IAM: now Namespaces, Secrets
+   Sync, Secrets Import.
+2. A partly failed import never labelled the secrets that landed: it labels
+   exactly the paths now in KV (a label on a missing path would create it);
+   unit test.
+3. to 6. Dead code removed: four probe helpers, `vault_list_json`, five
+   unused CSS rule groups, `Mono`, `useHashParam`, StepButton's `busy`, the
+   `make api-test` alias.
+7. `make github-installation` (scripts/github-installation.sh) runs the
+   installation lookup; README points at it.
+8. The evidence retry has a test (a half-written file read again).
+9. The Vault nodes' AWS comment: one accurate comment instead of two.
+10. `/api/sources` reads GitHub's associations itself instead of the full
+    sync view again.
+11. A rotation whose fingerprint label is refused is no longer reported as
+    done; unit test.
+12. The AWS reconcile derives the copy prefix from the template and asserts
+    its shape (rendered: `vault/lumen/`).
+13. `make backup` no longer tars LocalStack's always-empty state.
+14. doctor counts the story's own legacy names.
+15. nginx waits 120 s for the API (the import may take 90 s).
+16. A refused revoke at sign-out is logged (never the token); unit test.
+17. A 5xx request log line carries its reason.
+18. Seed and validate loop over names and labels only: a failing item can no
+    longer print a value (create path proven: one legacy secret deleted,
+    re-created, validate green).
+19. The security model states LocalStack's open loopback port as a limit.
+20. Not a code to-do: `make github-installation` shows the GitHub App still
+    holds agent, Codespaces and Dependabot secrets write; the user narrows it
+    in GitHub (the lab never changes app settings).
+21. `make up` said "kept" when compose had recreated the app with new
+    images; it compares container ids now.
+
+Results: API tests 29/29, lint clean, `make verify` 77/0, `make test-ui`
+22/0, stage reset.

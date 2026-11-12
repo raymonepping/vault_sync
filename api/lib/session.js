@@ -89,7 +89,9 @@ export function createSessions({ login, revoke, now = () => Date.now(), idleMs =
       const s = sid && sessions.get(sid);
       if (!s) return false;
       sessions.delete(sid);
-      await revoke(s.token).catch(() => {});
+      // A token that outlives its sign-out must leave a trace (never the token).
+      const r = await revoke(s.token).catch((e) => ({ ok: false, status: e.status || 503, errors: [e.message] }));
+      if (!r?.ok) console.error(JSON.stringify({ at: new Date().toISOString(), signout_revoke: "failed", status: r?.status ?? null, error: r?.errors?.[0] ?? null }));
       return true;
     },
     size: () => sessions.size,
