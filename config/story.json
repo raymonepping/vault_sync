@@ -1,0 +1,29 @@
+{
+  "company": "Lumen Parcel (fictional)",
+  "presenter": { "user": "ines", "display": "Ines Moreau", "role": "Platform engineer" },
+  "legacy": [
+    {
+      "aws_name": "lumen-legacy/delivery-api",
+      "kv_name": "parcel/delivery-api",
+      "value": "lumen-delivery-demo-key-0001",
+      "labels": { "owner": "delivery-team", "origin": "legacy-aws-secrets-manager", "classification": "internal" }
+    },
+    {
+      "aws_name": "lumen-legacy/label-printer",
+      "kv_name": "parcel/label-printer",
+      "value": "lumen-printer-demo-0002",
+      "labels": { "owner": "warehouse-team", "origin": "legacy-aws-secrets-manager", "classification": "internal" }
+    },
+    {
+      "aws_name": "lumen-legacy/smtp-relay",
+      "kv_name": "parcel/smtp-relay",
+      "value": "lumen-smtp-demo-0003",
+      "labels": { "owner": "notifications-team", "origin": "legacy-aws-secrets-manager", "classification": "internal" }
+    }
+  ],
+  "sync": {
+    "secret": "parcel/delivery-api",
+    "destinations": ["github", "localstack"]
+  },
+  "rotate": "parcel/delivery-api"
+}

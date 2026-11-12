@@ -1,0 +1,78 @@
+# make stage-reset (D18), the Vault half: remove every association of the two
+# destinations (Vault deletes the copies in GitHub and LocalStack), then
+# delete the imported kv/parcel/* paths with all their versions. The legacy
+# store is re-seeded by the seed phase afterwards (scripts/stage-reset.sh).
+- name: Reset the stage
+  hosts: localhost
+  gather_facts: false
+  vars:
+    reset_ns: "{{ vsync_cluster_addr }}/v1/{{ vsync_namespace }}"
+    reset_token: "{{ lookup('ansible.builtin.file', vsync_tokens_dir + '/ansible-platform') }}"
+    reset_destinations:
+      - { type: gh, name: lumen-github }
+      - { type: aws-sm, name: lumen-localstack }
+  tasks:
+    - name: Read each destination's associations
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/sys/sync/destinations/{{ item.type }}/{{ item.name }}/associations"
+        ca_path: "{{ vsync_ca }}"
+        headers: { X-Vault-Token: "{{ reset_token }}" }
+      loop: "{{ reset_destinations }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: reset_assoc
+      check_mode: false
+
+    # associated_secrets is a map keyed by association id: flatten it.
+    - name: Every (destination, secret) pair
+      ansible.builtin.set_fact:
+        reset_pairs: >-
+          {% set out = [] %}{% for r in reset_assoc.results %}{% for a in (r.json.data.associated_secrets | default({})).values() %}{%
+          set _ = out.append({'type': r.item.type, 'name': r.item.name, 'mount': a.mount, 'secret_name': a.secret_name}) %}{%
+          endfor %}{% endfor %}{{ out }}
+
+    - name: Remove every association (Vault deletes the external copy)
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/sys/sync/destinations/{{ item.type }}/{{ item.name }}/associations/remove"
+        ca_path: "{{ vsync_ca }}"
+        method: POST
+        headers: { X-Vault-Token: "{{ reset_token }}" }
+        body_format: json
+        body: { mount: "{{ item.mount }}", secret_name: "{{ item.secret_name }}" }
+      loop: "{{ reset_pairs }}"
+      loop_control:
+        label: "{{ item.name }}: {{ item.secret_name }}"
+      changed_when: true
+
+    - name: Wait until both destinations carry nothing
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/sys/sync/destinations/{{ item.type }}/{{ item.name }}/associations"
+        ca_path: "{{ vsync_ca }}"
+        headers: { X-Vault-Token: "{{ reset_token }}" }
+      loop: "{{ reset_destinations }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: reset_left
+      until: reset_left.json.data.associated_secrets | length == 0
+      retries: 30
+      delay: 2
+      check_mode: false
+
+    - name: List the imported paths
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/kv/metadata/parcel?list=true"
+        ca_path: "{{ vsync_ca }}"
+        headers: { X-Vault-Token: "{{ reset_token }}" }
+        status_code: [200, 404]
+      register: reset_kv
+      check_mode: false
+
+    - name: Delete each imported path with all its versions
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/kv/metadata/parcel/{{ item }}"
+        ca_path: "{{ vsync_ca }}"
+        method: DELETE
+        headers: { X-Vault-Token: "{{ reset_token }}" }
+        status_code: [204]
+      loop: "{{ reset_kv.json.data['keys'] if reset_kv.status == 200 else [] }}"
+      changed_when: true

@@ -1,0 +1,33 @@
+# vsync-presenter: Ines, the platform engineer (D13). Her session token runs
+# every act of the story through the API, so the audit log names her. She
+# writes values (the import's and the rotation's) and moves only the lab's
+# two destinations. Paths are relative to namespace lumen.
+
+# Act 1, Bring them home: Secrets Import writes kv/parcel/* (metadata first,
+# so it needs create there too, then data).
+path "kv/data/parcel/*" { capabilities = ["create", "update"] }
+path "kv/metadata/parcel/*" { capabilities = ["create", "read", "list", "update"] }
+path "kv/metadata/parcel" { capabilities = ["list"] }
+path "kv/metadata/" { capabilities = ["list"] }
+
+# Act 2, Send them out. Vault refuses associations/set unless the caller may
+# read the secret ("permission denied to read the content of the secret",
+# measured in prompt 05): you cannot sync what you cannot read. So read on
+# the one secret the story syncs (config/story.json sync.secret), no other.
+# The API never calls it: no route reads a value.
+path "kv/data/${sync_secret}" { capabilities = ["create", "update", "read"] }
+
+# The two destinations, their associations and status.
+path "sys/sync/destinations" { capabilities = ["read", "list"] }
+path "sys/sync/destinations/gh/lumen-github" { capabilities = ["read"] }
+path "sys/sync/destinations/aws-sm/lumen-localstack" { capabilities = ["read"] }
+path "sys/sync/destinations/gh/lumen-github/associations" { capabilities = ["read"] }
+path "sys/sync/destinations/aws-sm/lumen-localstack/associations" { capabilities = ["read"] }
+path "sys/sync/destinations/gh/lumen-github/associations/*" { capabilities = ["update"] }
+path "sys/sync/destinations/aws-sm/lumen-localstack/associations/*" { capabilities = ["update"] }
+path "sys/sync/associations" { capabilities = ["read", "list"] }
+path "sys/sync/associations/*" { capabilities = ["read"] }
+
+# Never: a value read, another mount, a destination's credentials, the app.
+path "kv/data/*" { capabilities = ["deny"] }
+path "sys/sync/github-apps/*" { capabilities = ["deny"] }

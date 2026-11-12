@@ -1,0 +1,5 @@
+stage_ns: "{{ vsync_cluster_addr }}/v1/{{ vsync_namespace }}"
+stage_token: "{{ lookup('ansible.builtin.file', vsync_tokens_dir + '/ansible-platform') }}"
+stage_destinations:
+  - { type: gh, name: lumen-github }
+  - { type: aws-sm, name: lumen-localstack }

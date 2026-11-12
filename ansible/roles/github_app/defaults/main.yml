@@ -1,0 +1,13 @@
+github_app_root: "{{ vsync_cluster_addr }}/v1"
+github_app_ns: "{{ vsync_cluster_addr }}/v1/{{ vsync_namespace }}"
+github_app_token: "{{ lookup('ansible.builtin.file', vsync_tokens_dir + '/ansible-platform') }}"
+github_app_destination: lumen-github
+# Vault turns / and - into _ (probe P23): parcel/delivery-api -> LUMEN_PARCEL_DELIVERY_API_VALUE.
+github_app_destination_body:
+  app_name: "{{ vsync_github.app }}"
+  installation_id: "{{ vsync_github.installation_id }}"
+  repository_owner: "{{ vsync_github.owner }}"
+  repository_name: "{{ vsync_github.repo }}"
+  secrets_location: repository
+  granularity: secret-key
+  secret_name_template: "LUMEN_{{ '{{' }} .SecretPath | uppercase {{ '}}' }}_{{ '{{' }} .SecretKey | uppercase {{ '}}' }}"

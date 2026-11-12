@@ -1,0 +1,16 @@
+destinations_ns: "{{ vsync_cluster_addr }}/v1/{{ vsync_namespace }}"
+destinations_token: "{{ lookup('ansible.builtin.file', vsync_tokens_dir + '/ansible-platform') }}"
+destinations_name: lumen-localstack
+# The Vault nodes reach LocalStack through AWS_ENDPOINT_URL (compose/vault);
+# the allowlist names LocalStack's /32 and port only (probe P10, P11).
+# Synthetic keys: LocalStack is an emulator, never real AWS.
+destinations_body:
+  access_key_id: test
+  secret_access_key: test
+  region: "{{ vsync_localstack.region }}"
+  granularity: secret-path
+  secret_name_template: "vault/lumen/{{ '{{' }} .SecretPath {{ '}}' }}"
+  allowed_ipv4_addresses: ["{{ vsync_localstack.ip }}/32"]
+  allowed_ports: [4566]
+# The copy's name: secret_name_template above with the path filled in.
+destinations_copy_prefix: vault/lumen/

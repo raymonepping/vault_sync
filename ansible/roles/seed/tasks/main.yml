@@ -1,0 +1,35 @@
+# seed. Idempotent: a secret that exists is left alone (its value may be the
+# story's own by then), a missing one is created.
+
+- name: Does each legacy secret exist?
+  ansible.builtin.uri:
+    url: "{{ vsync_localstack.url }}/"
+    ca_path: "{{ vsync_ca }}"
+    method: POST
+    headers: "{{ seed_headers | combine({'X-Amz-Target': 'secretsmanager.DescribeSecret'}) }}"
+    body: "{{ {'SecretId': item.aws_name} | to_json }}"
+    status_code: [200, 400]
+  loop: "{{ seed_story.legacy }}"
+  loop_control:
+    label: "{{ item.aws_name }}"
+  register: seed_found
+  check_mode: false
+
+# LocalStack requires ClientRequestToken (probe); to_uuid makes it stable per name.
+- name: Create the missing legacy secrets
+  ansible.builtin.uri:
+    url: "{{ vsync_localstack.url }}/"
+    ca_path: "{{ vsync_ca }}"
+    method: POST
+    headers: "{{ seed_headers | combine({'X-Amz-Target': 'secretsmanager.CreateSecret'}) }}"
+    body: >-
+      {{ {'Name': item.item.aws_name, 'ClientRequestToken': item.item.aws_name | to_uuid,
+          'SecretString': item.item.value, 'Description': 'Lumen Parcel legacy secret (synthetic)',
+          'Tags': item.item.labels | dict2items(key_name='Key', value_name='Value')} | to_json }}
+    status_code: [200]
+  loop: "{{ seed_found.results }}"
+  loop_control:
+    label: "{{ item.item.aws_name }}"
+  when: item.status == 400
+  changed_when: true
+  no_log: true
