@@ -243,3 +243,17 @@ Every finding fixed:
 
 Results: API tests 29/29, lint clean, `make verify` 77/0, `make test-ui`
 22/0, stage reset.
+
+## Prompt 99, round 2 (2026-11-12, after ca1f66d): zero to-dos
+
+The four reviews over round 1's diff and its callers (the import's partial
+labelling, the rotation's label check, the sources route, the sign-out log,
+the request log reason, doctor's count, `make up`'s app step, the derived
+copy prefix, `make github-installation`) found nothing new. Closing run:
+`make verify` 77/0, `make test-ui` 22/0, stage reset, GitHub holds no
+`LUMEN_` secret. The loop ends here.
+
+Open for the user (not code): narrow the VaultSyncDemo app's permissions to
+Secrets read/write and Metadata read; remove `vault_sync_fg`,
+`vault_sync_classic` and `Client_Secret` from `.env` (the build reads none
+of them).
